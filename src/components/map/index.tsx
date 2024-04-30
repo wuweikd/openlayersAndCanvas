@@ -335,8 +335,7 @@ const MapIndex = () => {
     return (<div>
         <h1>Map</h1>
         <div>
-            <h3>当前选择的节点：<span style={{color: 'red'}}>{nodeType}</span></h3>
-            <div>当前节点数量: {Object.keys(nodeMapRef).length}</div>
+            <h3>当前选择绘制的节点：<span style={{color: 'red'}}>{nodeType}</span></h3>
             <button onClick={() => clickNodeType(ENodeType.start)}>设置开始节点</button>
             <button onClick={() => clickNodeType(ENodeType.middle)}>添加中间节点</button>
             <button onClick={() => clickNodeType(ENodeType.end)}>设置结束节点</button>
