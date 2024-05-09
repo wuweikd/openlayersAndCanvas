@@ -166,6 +166,7 @@ function drawInCircleGround(ctx, offSetHeight = 0, offSetAngle = Math.PI / 6) {
 
 // 绘制圆内地面线
 function drawInCircleGroundLine(ctx, offSetHeight = 0, offSetAngle = Math.PI / 6) {
+    // 白色的地平线需要懂
     ctx.save()
     ctx.translate(dot.x + offSetHeight * Math.sin(offSetAngle), dot.y - offSetHeight * Math.cos(offSetAngle))
     ctx.rotate(offSetAngle)
@@ -175,7 +176,12 @@ function drawInCircleGroundLine(ctx, offSetHeight = 0, offSetAngle = Math.PI / 6
     ctx.strokeStyle = 'white'
     ctx.lineWidth = 1
     ctx.stroke()
+    ctx.restore()
 
+    // 黑色部分不动
+    ctx.save()
+    ctx.translate(dot.x,dot.y)
+    ctx.rotate(0)
     ctx.beginPath()
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
@@ -256,7 +262,7 @@ const useUpdatePanel = ({direction, roll, elevation}) => {
 
     }, [direction, roll, elevation]);
 
-    return [panelRef]
+    return {panelRef}
 }
 
 export {useUpdatePanel}

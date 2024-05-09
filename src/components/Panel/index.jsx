@@ -1,8 +1,6 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useRef, useState} from "react";
 import {useUpdatePanel} from "./core";
 import styled from "styled-components";
-import socketIo from 'socket.io-client'
-// import
 
 const Canvas = styled.canvas`
 `
@@ -12,20 +10,31 @@ const defaultData = {
     roll: 30, // 横滚，范围为-30-30
     elevation: -10 // 仰角，范围-20-20
 }
+const defautControl = {direction: true, roll: true, elevation: true}
+
+// 错误重连次数
+const MAX_RETRY_TIME = 3
 
 const Panel = () => {
-    const [data, setData] = React.useState(defaultData);
-    const [control, setControl] = React.useState({direction: true, roll: true, elevation: true})
-    const [wsData, setWSData] = React.useState(defaultData)
+    const [data, setData] = useState(defaultData);
+    const [control, setControl] = useState(defautControl)
+    const controlRef = React.useRef(defautControl);
+    const [wsData, setWSData] = useState(defaultData)
     const [useWs, setUseWs] = useState(false)
 
-    const [panelRef] = useUpdatePanel(useWs?wsData:data)
+    const {panelRef} = useUpdatePanel(useWs?wsData:data)
+    const retryTimeRef = useRef(0) // 错误重连次数
 
     function initWs() {
+        if(retryTimeRef.current >= MAX_RETRY_TIME) {
+            console.error('错误重连次数达到上限', MAX_RETRY_TIME)
+            return
+        }
         let ws = new WebSocket('ws://127.0.0.1:7001/ws')
         // 连接成功后的回调函数
         ws.onopen = function (params) {
             console.log('客户端连接成功')
+            retryTimeRef.current = 0
             // 向服务器发送消息
             ws.send('getData')
         };
@@ -35,12 +44,20 @@ const Panel = () => {
             try {
                 console.log('接受到的接口数据1', e.data)
                 let d = JSON.parse(e.data)
-                const {direction, roll, elevation} = d
+                let {direction, roll, elevation} = d
                 // console.log('接受到的接口数据2', {direction, roll, elevation} )
 
-                if (!(direction>=0 && direction<=360) || !(roll>=-30 && roll<=30) || !(elevation>=-20 && elevation<=20)) {
-                    console.log('后端接口服务数据不符合规范', !(direction>=0 && direction<=360) , !(roll>=-30 && roll<=30), !(elevation>=-20 && elevation<=20))
-                    throw new Error('后端接口服务数据不符合规范')
+                if (!(direction>=0 && direction<=360)) {
+                    direction = 0
+                    console.error('后端接口服务数据不符合规范',)
+                }
+                if (!(roll>=-30 && roll<=30)) {
+                    roll= 0
+                    console.error('后端接口服务数据不符合规范')
+                }
+                if (!(elevation>=-20 && elevation<=20)) {
+                    elevation= 0
+                    console.error('后端接口服务数据不符合规范')
                 }
                 setWSData({direction, roll, elevation})
             } catch (e) {
@@ -53,7 +70,27 @@ const Panel = () => {
         // 连接关闭后的回调函数
         ws.onclose = function (evt) {
             console.log("关闭客户端连接");
+            // 需判断链接关闭的类型
+            retryTimeRef.current = retryTimeRef.current + 1
+            if(retryTimeRef.current < MAX_RETRY_TIME) {
+                initWs()
+            }
         };
+    }
+
+    // 监听输入的参数
+    const onInputData = (e, type) => {
+        setData(pre => {
+            return {...pre, [type]: +e.target.value}
+        })
+    }
+
+    // 控制暂停参数
+    const onClickControl = (type) => {
+        setControl(pre => {
+            return {...pre, [type]: !pre[type]}
+        })
+        controlRef.current =  {...controlRef.current, [type]: !controlRef.current[type]}
     }
 
 
@@ -81,11 +118,10 @@ const Panel = () => {
                 } else if (!elevationFlag && elevation <= -20) {
                     elevationFlag = true
                 }
-
                 return {
-                    direction: control.direction ? direction + (directionFlag ? 1 : -1) : direction,
-                    roll: control.roll ? roll + (rollFlag ? 1 : -1) : roll,
-                    elevation: control.elevation ? elevation + (elevationFlag ? 1 : -1) : elevation,
+                    direction: controlRef.current.direction ? direction + (directionFlag ? 1 : -1) : direction,
+                    roll: controlRef.current.roll ? roll + (rollFlag ? 1 : -1) : roll,
+                    elevation: controlRef.current.elevation ? elevation + (elevationFlag ? 1 : -1) : elevation,
                 }
             })
         }, 100)
@@ -109,31 +145,25 @@ const Panel = () => {
         <div style={{display: 'flex'}}>
             <div style={{margin: '0 20px'}}>旋转：
                 <input type="number" value={data.roll} style={{width: '60px'}}
-                       onInput={(e) => {
-                           setData(Object.assign(data, {roll: +e.target.value}))
-                       }}
+                       onInput={(e) =>  onInputData(e, 'roll')}
                 />°
-                <button onClick={() => setControl(Object.assign(control, {roll: !control.roll}))}>
+                <button onClick={() => onClickControl('roll')}>
                     {control.roll ? '暂停' : '开始'}
                 </button>
             </div>
             <div style={{margin: '0 20px'}}>方向：
                 <input type="number" value={data.direction} style={{width: '60px'}}
-                       onInput={(e) => {
-                           setData(Object.assign(data, {direction: +e.target.value}))
-                       }}
+                       onInput={(e) =>  onInputData(e, 'direction')}
                 />°
-                <button onClick={() => setControl(Object.assign(control, {direction: !control.direction}))}>
+                <button onClick={() => onClickControl('direction')}>
                     {control.direction ? '暂停' : '开始'}
                 </button>
             </div>
             <div style={{margin: '0 20px'}}>俯仰：
                 <input type="number" value={data.elevation} style={{width: '60px'}}
-                       onInput={(e) => {
-                           setData(Object.assign(data, {elevation: +e.target.value}))
-                       }}
+                       onInput={(e) =>  onInputData(e, 'elevation')}
                 />°
-                <button onClick={() => setControl(Object.assign(control, {elevation: !control.elevation}))}>
+                <button onClick={() => onClickControl('elevation')}>
                     {control.elevation ? '暂停' : '开始'}
                 </button>
             </div>

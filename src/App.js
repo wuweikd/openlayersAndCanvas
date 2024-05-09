@@ -1,6 +1,6 @@
 import './App.css';
 import TestCssInJs from "./components/TestCssInJs";
-import Panel from "./components/Panel/Panel";
+import Panel from "./components/Panel";
 import Map from "./components/map/index.tsx";
 
 
